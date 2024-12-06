@@ -1,0 +1,31 @@
+market_analysis_task:
+  description: >
+    Fetch and summarize live market data, focusing on current trends and key statistics like price movements, volume, and volatility.
+  expected_output: >
+    A detailed summary of current market data, including key metrics and trends.
+  agent: market_analyst
+    
+
+technical_analysis_task:
+  description: >
+    Analyze the market's technical indicators (e.g., RSI, MACD, Moving Averages) and provide a natural language summary of the findings.
+  expected_output: >
+    A human-readable summary of technical indicators, explaining current market conditions and potential trends.
+  agent: technical_analyst
+
+
+
+strategy_evaluation_task:
+  description: >
+    Evaluate the predefined trading strategy using the latest market data and technical analysis insights. Decide whether it is a good time to enter a trade.
+  expected_output: >
+    A decision on whether to invest or not, including the rationale behind the decision.
+  agent: strategy_evaluator
+
+risk_assessment_task:
+  description: >
+    Based on the trade decision, calculate optimal stop-loss and take-profit levels to minimize risk and maximize potential returns.
+  expected_output: >
+    Recommended stop-loss and take-profit levels for the trade.
+  agent: risk_manager
+  output_file: risk_assessment_output.txt
