@@ -1,97 +1,70 @@
-from crewai import Agent, Crew, Process, Task
-from crewai.project import CrewBase, agent, crew, task, before_kickoff, after_kickoff
-from tools.alpaca_market_tool import AlpacaMarketDataTool
-from knowledge.trading_strategy import trading_strategy_source
-# Uncomment the following line to use an example of a custom tool
-# from trading_crew.tools.custom_tool import MyCustomTool
+import logging
+from datetime import datetime
+from typing import Optional, Dict, Any
+import ccxt
+from trading_crew.state import market_state
 
-# Check our tools documentations for more information on how to use them
-# from crewai_tools import SerperDevTool
+log = logging.getLogger(__name__)
 
+class TradingCrew:
+    """Trading crew that manages the trading operations."""
 
+    def __init__(self, test: bool = False, credentials_path: Optional[str] = None):
+        """Initialize the trading crew.
 
-@CrewBase
-class TradingCrew():
-	"""TradingCrew crew"""
+        Args:
+            test: Whether to run in test mode
+            credentials_path: Path to credentials file
+        """
+        self.test = test
+        self.credentials_path = credentials_path
+        self.exchange = self._initialize_exchange()
 
-	agents_config = 'config/agents.yaml'
-	tasks_config = 'config/tasks.yaml'
+    def _initialize_exchange(self) -> ccxt.Exchange:
+        """Initialize the exchange connection.
 
-	@before_kickoff # Optional hook to be executed before the crew starts
-	def pull_data_example(self, inputs):
-		# Example of pulling data from an external API, dynamically changing the inputs
-		inputs['extra_data'] = "This is extra data"
-		return inputs
+        Returns:
+            Configured exchange instance
+        """
+        if self.test:
+            return ccxt.binance({'options': {'defaultType': 'future'}})
 
-	@after_kickoff # Optional hook to be executed after the crew has finished
-	def log_results(self, output):
-		# Example of logging results, dynamically changing the output
-		print(f"Results: {output}")
-		return output
+        # TODO: Implement credentials loading and real exchange initialization
+        return ccxt.binance({'options': {'defaultType': 'future'}})
 
-	@agent
-	def market_analyst(self) -> Agent:
-		return Agent(
-			config=self.agents_config['market_analyst'],
-			verbose=True, 
-			tools=[AlpacaMarketDataTool()]
-		)
+    def _fetch_market_data(self) -> None:
+        """Fetch and update market data in the global state."""
+        try:
+            # Fetch current price
+            ticker = self.exchange.fetch_ticker(market_state.symbol)
+            market_state.update_price(ticker['last'])
 
-	@agent
-	def technical_analyst(self) -> Agent:
-		return Agent(
-			config=self.agents_config['technical_analyst'],
-			verbose=True,
-			tools=[AlpacaMarketDataTool()]
-		)
+            # Fetch historical data
+            ohlcv = self.exchange.fetch_ohlcv(
+                market_state.symbol,
+                market_state.timeframe,
+                limit=100
+            )
+            df = self.exchange.convert_ohlcv_to_dataframe(ohlcv)
+            market_state.update_historical_data(df)
 
-	@agent
-	def strategy_evaluator(self) -> Agent:
-		return Agent(
-			config=self.agents_config['strategy_evaluator'],
-			verbose=True
+            # Update timestamp
+            market_state.last_updated = datetime.now().isoformat()
 
-		)
+        except Exception as e:
+            log.error(f'Error fetching market data: {str(e)}')
+            raise
 
-	@agent
-	def risk_manager(self) -> Agent:
-		return Agent(
-			config=self.agents_config['risk_manager'],
-			verbose=True
-		)	
-  
-	@task
-	def market_analysis_task(self) -> Task:
-		return Task(
-			config=self.tasks_config['market_analysis_task']
-		)
-  
-	@task
-	def technical_analysis_task(self) -> Task:
-		return Task(
-			config=self.tasks_config['technical_analysis_task']
-		)
-  
-	@task
-	def strategy_evaluation_task(self) -> Task:
-		return Task(
-			config=self.tasks_config['strategy_evaluation_task']
-		)
-  
-	@task
-	def risk_assessment_task(self) -> Task:
-		return Task(
-			config=self.tasks_config['risk_assessment_task']
-		)
+    def run(self) -> None:
+        """Run the trading crew operations."""
+        try:
+            log.info(f'Starting trading crew for {market_state.symbol}')
+            self._fetch_market_data()
+            
+            # TODO: Implement trading logic using market_state
+            log.info(f'Current price: {market_state.current_price}')
+            log.info(f'Last updated: {market_state.last_updated}')
 
-	@crew
-	def crew(self) -> Crew:
-		"""Creates the TradingCrew crew"""
-		return Crew(
-			agents=self.agents, # Automatically created by the @agent decorator
-			tasks=self.tasks, # Automatically created by the @task decorator
-			process=Process.sequential,
-			verbose=True,
-			knowledge={"sources": [trading_strategy_source], "metadata": {"trading_strategy": "simple"}}
-			# process=Process.hierarchical, # In case you wanna use that instead https://docs.crewai.com/how-to/Hierarchical/
-		)
+        except Exception as e:
+            log.error(f'Error in trading crew: {str(e)}')
+            raise
