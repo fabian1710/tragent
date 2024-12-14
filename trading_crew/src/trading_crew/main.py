@@ -1,61 +1,49 @@
-#!/usr/bin/env python
-import sys
-import warnings
+import logging
+from typing import List, Optional
+from trading_crew.crew import TradingCrew
+from trading_crew.state import market_state
 
-from crew import TradingCrew
+log = logging.getLogger(__name__)
 
-warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
+def run_trading_crew(
+    symbol: str,
+    timeframe: str = '1h',
+    test: bool = False,
+    credentials_path: Optional[str] = None,
+) -> None:
+    """Run the trading crew for a specific symbol and timeframe.
 
-# This main file is intended to be a way for you to run your
-# crew locally, so refrain from adding unnecessary logic into this file.
-# Replace with inputs you want to test with, it will automatically
-# interpolate any tasks and agents information
-
-def run():
+    Args:
+        symbol: Trading pair symbol (e.g., 'BTC/USDT')
+        timeframe: Candlestick timeframe (default: '1h')
+        test: Whether to run in test mode
+        credentials_path: Path to credentials file
     """
-    Run the crew.
-    """
-    inputs = {
-        'topic': 'AI LLMs'
-    }
-    TradingCrew().crew().kickoff(inputs=inputs)
+    # Initialize market state
+    market_state.symbol = symbol
+    market_state.timeframe = timeframe
 
+    crew = TradingCrew(test=test, credentials_path=credentials_path)
+    crew.run()
 
-def train():
-    """
-    Train the crew for a given number of iterations.
-    """
-    inputs = {
-        "topic": "AI LLMs"
-    }
-    try:
-        TradingCrew().crew().train(n_iterations=int(sys.argv[1]), filename=sys.argv[2], inputs=inputs)
+def main():
+    """Main entry point for the trading crew application."""
+    import argparse
 
-    except Exception as e:
-        raise Exception(f"An error occurred while training the crew: {e}")
+    parser = argparse.ArgumentParser(description='Run the trading crew')
+    parser.add_argument('--symbol', type=str, required=True, help='Trading pair symbol')
+    parser.add_argument('--timeframe', type=str, default='1h', help='Candlestick timeframe')
+    parser.add_argument('--test', action='store_true', help='Run in test mode')
+    parser.add_argument('--credentials', type=str, help='Path to credentials file')
 
-def replay():
-    """
-    Replay the crew execution from a specific task.
-    """
-    try:
-        TradingCrew().crew().replay(task_id=sys.argv[1])
+    args = parser.parse_args()
 
-    except Exception as e:
-        raise Exception(f"An error occurred while replaying the crew: {e}")
+    run_trading_crew(
+        symbol=args.symbol,
+        timeframe=args.timeframe,
+        test=args.test,
+        credentials_path=args.credentials,
+    )
 
-def test():
-    """
-    Test the crew execution and returns the results.
-    """
-    inputs = {
-        "topic": "AI LLMs"
-    }
-    try:
-        TradingCrew().crew().test(n_iterations=int(sys.argv[1]), openai_model_name=sys.argv[2], inputs=inputs)
-
-    except Exception as e:
-        raise Exception(f"An error occurred while replaying the crew: {e}")
-
-if __name__ == "__main__":
-    run()
+if __name__ == '__main__':
+    main()
